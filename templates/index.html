@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulador Aviator Web</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1>✈️ Simulador Aviator Web ✈️</h1>
+
+      <div id="config-section" class="card">
+        <h2>Configuração Inicial</h2>
+        <label for="saldoInicial">Saldo Inicial:</label>
+        <input type="number" id="saldoInicial" value="1000" min="1" />
+        <label for="apostaMinima">Aposta Mínima:</label>
+        <input type="number" id="apostaMinima" value="10" min="1" />
+        <label for="apostaMaxima">Aposta Máxima:</label>
+        <input type="number" id="apostaMaxima" value="100" min="1" />
+        <button id="configGameBtn">Iniciar Jogo</button>
+      </div>
+
+      <div id="game-section" class="card" style="display: none">
+        <p>Saldo Atual: <span id="currentBalance">R$ 0.00</span></p>
+        <p>Estratégia: <span id="currentStrategy">Nenhuma</span></p>
+
+        <div class="controls">
+          <label for="betAmount">Valor da Aposta:</label>
+          <input type="number" id="betAmount" value="10" min="1" />
+
+          <label for="manualCashout">Saque Manual (x):</label>
+          <input
+            type="number"
+            id="manualCashout"
+            value="2.0"
+            step="0.1"
+            min="1.1"
+          />
+
+          <label for="autoCashout">Saque Automático (x):</label>
+          <input
+            type="number"
+            id="autoCashout"
+            value="0.0"
+            step="0.1"
+            min="0.0"
+          />
+          <span class="info-text">(0.0 para desativar)</span>
+
+          <button id="playRoundBtn">Jogar Rodada</button>
+        </div>
+
+        <div class="messages">
+          <p id="gameMessage"></p>
+          <p id="roundResult"></p>
+        </div>
+
+        <div class="options">
+          <button id="showHistoryBtn">Ver Histórico</button>
+          <button id="changeStrategyBtn">Mudar Estratégia</button>
+          <button id="resetGameBtn">Reiniciar Jogo</button>
+        </div>
+      </div>
+
+      <div id="history-section" class="card" style="display: none">
+        <h2>Histórico de Rodadas</h2>
+        <div id="historyList"></div>
+        <button id="closeHistoryBtn">Fechar Histórico</button>
+      </div>
+
+      <div id="strategy-section" class="card" style="display: none">
+        <h2>Escolha sua Estratégia</h2>
+        <button class="strategy-btn" data-strategy="1">Manual</button>
+        <button class="strategy-btn" data-strategy="2">Martingale</button>
+        <button class="strategy-btn" data-strategy="3">Nenhuma</button>
+        <button id="cancelStrategyBtn">Cancelar</button>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>

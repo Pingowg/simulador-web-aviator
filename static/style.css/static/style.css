@@ -1,0 +1,153 @@
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #282c34;
+  color: #e0e0e0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.container {
+  background-color: #3a3f4a;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 30px;
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+}
+
+h1 {
+  color: #61dafb;
+  margin-bottom: 25px;
+  font-size: 2.2em;
+}
+
+h2 {
+  color: #a0a0a0;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.5em;
+}
+
+.card {
+  background-color: #2c313a;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #c0c0c0;
+}
+
+input[type="number"] {
+  width: calc(100% - 20px);
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background-color: #444;
+  color: #eee;
+  font-size: 1em;
+}
+
+button {
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1.1em;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  margin: 5px;
+}
+
+button:hover {
+  background-color: #21a1f1;
+}
+
+button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+.controls,
+.options {
+  margin-top: 20px;
+}
+
+.messages {
+  background-color: #1e1e1e;
+  border-radius: 5px;
+  padding: 15px;
+  margin-top: 20px;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#gameMessage {
+  color: #ffe066; /* Amarelo para mensagens */
+  font-weight: bold;
+}
+
+#roundResult {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #aaffaa; /* Verde para ganho */
+}
+#roundResult.lose {
+  color: #ff8888; /* Vermelho para perda */
+}
+
+#historyList {
+  background-color: #1e1e1e;
+  border-radius: 5px;
+  padding: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  text-align: left;
+  color: #ccc;
+}
+
+#historyList p {
+  margin: 5px 0;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #444;
+}
+#historyList p:last-child {
+  border-bottom: none;
+}
+
+.info-text {
+  font-size: 0.85em;
+  color: #999;
+  margin-top: -10px;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.strategy-btn {
+  width: calc(33% - 10px); /* Ajusta para 3 botões por linha */
+  box-sizing: border-box;
+}
+#cancelStrategyBtn {
+  background-color: #f44336;
+  margin-top: 15px;
+}
+#cancelStrategyBtn:hover {
+  background-color: #d32f2f;
+}
