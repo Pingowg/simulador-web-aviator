@@ -1,381 +1,347 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const configSection = document.getElementById("config-section");
-  const gameSection = document.getElementById("game-section");
-  const historySection = document.getElementById("history-section");
-  const strategySection = document.getElementById("strategy-section");
+// --- Elementos DOM ---
+const configSection = document.getElementById("config-section");
+const gameSection = document.getElementById("game-section");
+const historySection = document.getElementById("history-section");
+const strategySection = document.getElementById("strategy-section");
 
-  const saldoInicialInput = document.getElementById("saldoInicial");
-  const apostaMinimaInput = document.getElementById("apostaMinima");
-  const apostaMaximaInput = document.getElementById("apostaMaxima");
-  const configGameBtn = document.getElementById("configGameBtn");
+const saldoInicialInput = document.getElementById("saldoInicial");
+const apostaMinimaInput = document.getElementById("apostaMinima");
+const apostaMaximaInput = document.getElementById("apostaMaxima");
+const configGameBtn = document.getElementById("configGameBtn"); // Botão "Iniciar Jogo"
 
-  const currentBalanceSpan = document.getElementById("currentBalance");
-  const currentStrategySpan = document.getElementById("currentStrategy");
-  const betAmountInput = document.getElementById("betAmount");
-  const manualCashoutInput = document.getElementById("manualCashout");
-  const autoCashoutInput = document.getElementById("autoCashout");
-  const playRoundBtn = document.getElementById("playRoundBtn");
-  const gameMessagePara = document.getElementById("gameMessage");
-  const roundResultPara = document.getElementById("roundResult");
+const currentBalanceSpan = document.getElementById("currentBalance");
+const currentStrategySpan = document.getElementById("currentStrategy");
+const betAmountInput = document.getElementById("betAmount");
+const manualCashoutInput = document.getElementById("manualCashout");
+const autoCashoutInput = document.getElementById("autoCashout");
+const playRoundBtn = document.getElementById("playRoundBtn");
+const gameMessagePara = document.getElementById("gameMessage");
+const roundResultPara = document.getElementById("roundResult");
 
-  const showHistoryBtn = document.getElementById("showHistoryBtn");
-  const changeStrategyBtn = document.getElementById("changeStrategyBtn");
-  const resetGameBtn = document.getElementById("resetGameBtn");
-  const closeHistoryBtn = document.getElementById("closeHistoryBtn");
-  const historyListDiv = document.getElementById("historyList");
+const showHistoryBtn = document.getElementById("showHistoryBtn");
+const changeStrategyBtn = document.getElementById("changeStrategyBtn");
+const resetGameBtn = document.getElementById("resetGameBtn");
+const closeHistoryBtn = document.getElementById("closeHistoryBtn");
 
-  const strategyBtns = document.querySelectorAll(".strategy-btn");
-  const cancelStrategyBtn = document.getElementById("cancelStrategyBtn");
+const historyListDiv = document.getElementById("historyList"); // Novo elemento para a lista de histórico
+const cancelStrategyBtn = document.getElementById("cancelStrategyBtn"); // Botão de cancelar estratégia
 
-  let currentGameState = {}; // Para armazenar o estado do jogo do backend
+// --- Funções Auxiliares ---
 
-  // --- Funções de UI ---
+// Função para formatar valores monetários
+function formatCurrency(value) {
+  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+}
 
-  function showSection(sectionId) {
-    configSection.style.display = "none";
+// Função para exibir mensagens na UI
+function displayMessage(message, isError = false) {
+  gameMessagePara.textContent = message;
+  gameMessagePara.style.color = isError ? "red" : "inherit";
+}
+
+// Função para atualizar o estado do jogo na UI
+function updateGameUI(data) {
+  currentBalanceSpan.textContent = formatCurrency(data.saldo);
+  currentStrategySpan.textContent = getStrategyName(data.estrategia_ativa);
+  betAmountInput.value =
+    data.perdeu_ultima_martingale && data.ultima_aposta_martingale > 0
+      ? (data.ultima_aposta_martingale * 2).toFixed(2) // Sugere dobrar a aposta se perdeu na martingale
+      : data.aposta_base_martingale > 0
+      ? data.aposta_base_martingale.toFixed(2)
+      : data.aposta_minima.toFixed(2); // Ou base, ou mínima
+  // Garante que o input de aposta não exceda o saldo ou o máximo
+  betAmountInput.max = Math.min(data.saldo, data.aposta_maxima);
+  betAmountInput.min = data.aposta_minima;
+
+  // Se o saldo for 0 ou menor que a aposta mínima, desativa o botão de jogar
+  if (data.saldo <= 0 || data.saldo < data.aposta_minima) {
+    playRoundBtn.disabled = true;
+    displayMessage("Saldo insuficiente para continuar. Reinicie o jogo.", true);
+  } else {
+    playRoundBtn.disabled = false;
+  }
+}
+
+// Mapeia o ID da estratégia para um nome legível
+function getStrategyName(id) {
+  switch (id) {
+    case "1":
+      return "Manual";
+    case "2":
+      return "Martingale";
+    case "3":
+      return "Nenhuma";
+    default:
+      return "Desconhecida";
+  }
+}
+
+// --- Funções de Requisição à API (Backend Flask) ---
+
+async function initGame() {
+  const saldoInicial = parseFloat(saldoInicialInput.value);
+  const apostaMinima = parseFloat(apostaMinimaInput.value);
+  const apostaMaxima = parseFloat(apostaMaximaInput.value);
+
+  if (
+    isNaN(saldoInicial) ||
+    isNaN(apostaMinima) ||
+    isNaN(apostaMaxima) ||
+    saldoInicial <= 0 ||
+    apostaMinima <= 0 ||
+    apostaMaxima <= 0 ||
+    apostaMinima > apostaMaxima
+  ) {
+    displayMessage(
+      "Por favor, insira valores válidos e positivos para Saldo, Aposta Mínima e Aposta Máxima (Mínima deve ser menor ou igual à Máxima).",
+      true
+    );
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/init_game", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        saldo_inicial: saldoInicial,
+        aposta_minima: apostaMinima,
+        aposta_maxima: apostaMaxima,
+      }),
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      displayMessage("Jogo inicializado com sucesso!");
+      updateGameUI(data);
+      configSection.style.display = "none";
+      gameSection.style.display = "block";
+    } else {
+      displayMessage(`Erro ao inicializar: ${data.message}`, true);
+    }
+  } catch (error) {
+    console.error("Erro na requisição de inicialização:", error);
+    displayMessage(
+      "Erro ao conectar com o servidor para inicializar o jogo.",
+      true
+    );
+  }
+}
+
+async function startGameRound() {
+  const aposta = parseFloat(betAmountInput.value);
+  const saqueManual = parseFloat(manualCashoutInput.value);
+  const saqueAutomatico = parseFloat(autoCashoutInput.value);
+
+  if (isNaN(aposta) || aposta <= 0) {
+    displayMessage("Por favor, insira um valor de aposta válido.", true);
+    return;
+  }
+
+  if (saqueManual > 0 && saqueManual <= 1) {
+    displayMessage(
+      "Multiplicador de saque manual deve ser maior que 1.0",
+      true
+    );
+    return;
+  }
+  if (saqueAutomatico > 0 && saqueAutomatico <= 1 && saqueAutomatico !== 0) {
+    // 0 é para desativar
+    displayMessage(
+      "Multiplicador de saque automático deve ser maior que 1.0 (ou 0 para desativar).",
+      true
+    );
+    return;
+  }
+
+  // Desativa o botão para evitar cliques múltiplos
+  playRoundBtn.disabled = true;
+  displayMessage("Avião voando...", false);
+  roundResultPara.textContent = ""; // Limpa resultado anterior
+
+  try {
+    const response = await fetch("/api/start_round", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        aposta: aposta,
+        multiplicador_saque_manual: saqueManual,
+        multiplicador_saque_automatico: saqueAutomatico,
+      }),
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      updateGameUI(data); // Atualiza saldo e estratégia
+      let resultMessage = data.mensagem;
+
+      if (data.multiplicador_sacado) {
+        resultMessage += ` Multiplicador final da rodada: x${data.multiplicador_final_voou.toFixed(
+          2
+        )}.`;
+      } else {
+        resultMessage += ` O avião voou até x${data.multiplicador_final_voou.toFixed(
+          2
+        )}.`;
+      }
+      displayMessage(resultMessage);
+      roundResultPara.textContent = `Ganho/Perda na rodada: ${formatCurrency(
+        data.ganho_rodada
+      )}`;
+
+      // Se a estratégia for Martingale e perdeu, atualiza a aposta sugerida
+      if (data.estrategia_ativa === "2" && data.ganho_rodada < 0) {
+        // A lógica de `updateGameUI` já deve sugerir a próxima aposta Martingale
+      }
+    } else {
+      displayMessage(`Erro na rodada: ${data.message}`, true);
+    }
+  } catch (error) {
+    console.error("Erro na requisição da rodada:", error);
+    displayMessage(
+      "Erro ao conectar com o servidor para jogar a rodada.",
+      true
+    );
+  } finally {
+    playRoundBtn.disabled = false; // Reativa o botão
+  }
+}
+
+async function getHistory() {
+  try {
+    const response = await fetch("/api/get_history");
+    const data = await response.json();
+
+    if (data.success) {
+      historyListDiv.innerHTML = ""; // Limpa o histórico anterior
+      if (data.historico.length === 0) {
+        historyListDiv.innerHTML = "<p>Nenhuma rodada jogada ainda.</p>";
+      } else {
+        data.historico.forEach((round, index) => {
+          const p = document.createElement("p");
+          p.textContent = `Rodada ${index + 1}: Aposta ${formatCurrency(
+            round.aposta
+          )}, Multiplicador Final: x${round.multiplicador_final.toFixed(2)}`;
+          if (round.multiplicador_sacado) {
+            p.textContent += `, Sacou em x${round.multiplicador_sacado.toFixed(
+              2
+            )}`;
+          }
+          p.textContent += `, Ganho/Perda: ${formatCurrency(round.ganho)}.`;
+          historyListDiv.appendChild(p);
+        });
+      }
+      gameSection.style.display = "none";
+      historySection.style.display = "block";
+    } else {
+      displayMessage(`Erro ao buscar histórico: ${data.message}`, true);
+    }
+  } catch (error) {
+    console.error("Erro na requisição do histórico:", error);
+    displayMessage(
+      "Erro ao conectar com o servidor para buscar histórico.",
+      true
+    );
+  }
+}
+
+async function setStrategy(strategyId) {
+  try {
+    const response = await fetch("/api/set_strategy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ estrategia: strategyId }),
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      displayMessage(
+        `Estratégia alterada para: ${getStrategyName(data.estrategia_ativa)}`
+      );
+      currentStrategySpan.textContent = getStrategyName(data.estrategia_ativa);
+      strategySection.style.display = "none";
+      gameSection.style.display = "block"; // Volta para a tela do jogo
+      // Força a atualização do UI para refletir a nova estratégia (ex: aposta base martingale)
+      fetchGameState();
+    } else {
+      displayMessage(`Erro ao mudar estratégia: ${data.message}`, true);
+    }
+  } catch (error) {
+    console.error("Erro na requisição de estratégia:", error);
+    displayMessage(
+      "Erro ao conectar com o servidor para mudar estratégia.",
+      true
+    );
+  }
+}
+
+async function fetchGameState() {
+  try {
+    const response = await fetch("/api/get_game_state");
+    const data = await response.json();
+    if (data.success) {
+      // Se o saldo inicial ainda não foi configurado, mostre a seção de configuração
+      if (!data.saldo_inicial_configurado) {
+        configSection.style.display = "block";
+        gameSection.style.display = "none";
+        historySection.style.display = "none";
+        strategySection.style.display = "none";
+      } else {
+        // Se já foi configurado, atualize a UI e mostre a seção do jogo
+        updateGameUI(data);
+        configSection.style.display = "none";
+        gameSection.style.display = "block";
+      }
+    } else {
+      console.error("Erro ao buscar estado do jogo:", data.message);
+      // Se houver erro ao buscar estado, assume que não está configurado
+      configSection.style.display = "block";
+      gameSection.style.display = "none";
+    }
+  } catch (error) {
+    console.error("Erro na requisição para get_game_state:", error);
+    // Em caso de erro de rede, assume que não está configurado
+    configSection.style.display = "block";
     gameSection.style.display = "none";
-    historySection.style.display = "none";
-    strategySection.style.display = "none";
-
-    document.getElementById(sectionId).style.display = "block";
   }
+}
 
-  function updateGameUI(state) {
-    currentBalanceSpan.textContent = `R$ ${state.saldo.toFixed(2)}`;
-    currentStrategySpan.textContent = getStrategyName(state.estrategia_ativa);
-    betAmountInput.min = state.aposta_minima;
-    betAmountInput.max = state.aposta_maxima;
+// --- Listeners de Eventos ---
 
-    // Desabilita campos de saque se for Martingale
-    const isMartingale = state.estrategia_ativa === "2";
-    manualCashoutInput.disabled = isMartingale;
-    autoCashoutInput.disabled = isMartingale;
-
-    // Se for Martingale e perdeu a última, atualiza aposta para a próxima rodada (feedback visual)
-    if (isMartingale && state.perdeu_ultima_martingale) {
-      let nextBet = state.ultima_aposta_martingale * 2;
-      // Ajusta para limites e saldo (simula lógica do backend)
-      if (nextBet > state.saldo) nextBet = state.saldo;
-      if (nextBet < state.aposta_minima && state.saldo >= state.aposta_minima)
-        nextBet = state.aposta_minima;
-      else if (
-        nextBet < state.aposta_minima &&
-        state.saldo < state.aposta_minima
-      )
-        nextBet = state.saldo;
-      if (nextBet > state.aposta_maxima) nextBet = state.aposta_maxima;
-
-      betAmountInput.value = nextBet.toFixed(2);
-      gameMessagePara.textContent = `Estratégia Martingale: Próxima aposta será R$${nextBet.toFixed(
-        2
-      )}.`;
-    } else if (
-      isMartingale &&
-      !state.perdeu_ultima_martingale &&
-      state.aposta_base_martingale > 0
-    ) {
-      betAmountInput.value = state.aposta_base_martingale.toFixed(2);
-      gameMessagePara.textContent = `Estratégia Martingale: Aposta base R$${state.aposta_base_martingale.toFixed(
-        2
-      )}.`;
-    } else if (isMartingale && state.aposta_base_martingale === 0) {
-      gameMessagePara.textContent =
-        "Estratégia Martingale: Digite sua aposta base inicial.";
-      betAmountInput.value = state.aposta_minima; // Sugere aposta minima
-    } else {
-      gameMessagePara.textContent = ""; // Limpa mensagem da estratégia
-      // Mantém a última aposta ou valor padrão se não for martingale
-      if (parseFloat(betAmountInput.value) < state.aposta_minima) {
-        betAmountInput.value = state.aposta_minima;
-      }
-    }
-  }
-
-  function getStrategyName(strategyCode) {
-    switch (strategyCode) {
-      case "1":
-        return "Manual";
-      case "2":
-        return "Martingale";
-      case "3":
-        return "Nenhuma";
-      default:
-        return "Desconhecida";
-    }
-  }
-
-  function displayMessage(message, isError = false) {
-    gameMessagePara.textContent = message;
-    gameMessagePara.style.color = isError ? "#ff8888" : "#ffe066";
-  }
-
-  function displayRoundResult(result) {
-    roundResultPara.textContent = result.mensagem;
-    roundResultPara.className = "round-result"; // Limpa classes anteriores
-    if (result.ganho_rodada < 0) {
-      roundResultPara.classList.add("lose");
-    } else {
-      roundResultPara.classList.add("win");
-    }
-    updateGameUI(currentGameState); // Atualiza UI após resultado
-  }
-
-  function clearMessages() {
-    gameMessagePara.textContent = "";
-    roundResultPara.textContent = "";
-    roundResultPara.classList.remove("win", "lose");
-  }
-
-  // --- Chamadas de API ---
-
-  async function fetchGameState() {
-    try {
-      const response = await fetch("/api/get_game_state");
-      const data = await response.json();
-      if (data.success) {
-        currentGameState = data;
-        updateGameUI(currentGameState);
-        // Se o jogo já estiver configurado, mostra a seção do jogo
-        if (currentGameState.saldo_inicial_configurado) {
-          showSection("game-section");
-        } else {
-          showSection("config-section");
-        }
-      } else {
-        displayMessage(
-          "Erro ao carregar estado do jogo: " + data.message,
-          true
-        );
-      }
-    } catch (error) {
-      displayMessage("Erro de conexão com o servidor.", true);
-      console.error("Erro ao buscar estado do jogo:", error);
-    }
-  }
-
-  async function initGame() {
-    const saldoInicial = parseFloat(saldoInicialInput.value);
-    const apostaMinima = parseFloat(apostaMinimaInput.value);
-    const apostaMaxima = parseFloat(apostaMaximaInput.value);
-
-    if (
-      isNaN(saldoInicial) ||
-      isNaN(apostaMinima) ||
-      isNaN(appostaMaxima) ||
-      saldoInicial < 1 ||
-      apostaMinima < 1 ||
-      apostaMaxima < apostaMinima
-    ) {
-      displayMessage(
-        "Por favor, insira valores válidos para saldo e apostas.",
-        true
-      );
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/init_game", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          saldo_inicial: saldoInicial,
-          aposta_minima: apostaMinima,
-          aposta_maxima: apostaMaxima,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        currentGameState.saldo = data.saldo;
-        currentGameState.saldo_inicial_configurado = true;
-        currentGameState.estrategia_ativa = "3"; // Reseta a estratégia no início
-        currentGameState.aposta_base_martingale = 0.0;
-        currentGameState.ultima_aposta_martingale = 0.0;
-        currentGameState.perdeu_ultima_martingale = false;
-
-        showSection("game-section");
-        updateGameUI(currentGameState);
-        clearMessages();
-      } else {
-        displayMessage("Erro ao iniciar jogo: " + data.message, true);
-      }
-    } catch (error) {
-      displayMessage("Erro de conexão ao iniciar jogo.", true);
-      console.error("Erro ao iniciar jogo:", error);
-    }
-  }
-
-  async function playRound() {
-    clearMessages();
-    const aposta = parseFloat(betAmountInput.value);
-    const manualCashout = parseFloat(manualCashoutInput.value) || 0.0;
-    const autoCashout = parseFloat(autoCashoutInput.value) || 0.0;
-
-    if (isNaN(aposta) || aposta <= 0) {
-      displayMessage("Por favor, insira um valor de aposta válido.", true);
-      return;
-    }
-    if (manualCashout > 0 && manualCashout <= 1.0) {
-      displayMessage(
-        "Saque manual deve ser maior que 1.0 ou 0 para desativar.",
-        true
-      );
-      return;
-    }
-    if (autoCashout > 0 && autoCashout <= 1.0) {
-      displayMessage(
-        "Saque automático deve ser maior que 1.0 ou 0 para desativar.",
-        true
-      );
-      return;
-    }
-    if (
-      manualCashout === 0 &&
-      autoCashout === 0 &&
-      currentGameState.estrategia_ativa !== "2"
-    ) {
-      displayMessage(
-        "Você deve configurar um saque manual ou automático (exceto na Martingale).",
-        true
-      );
-      return;
-    }
-
-    try {
-      playRoundBtn.disabled = true; // Desabilita botão enquanto a rodada está rodando
-      displayMessage("✈️ Avião decolando... ✈️");
-
-      const response = await fetch("/api/start_round", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          aposta: aposta,
-          multiplicador_saque_manual: manualCashout,
-          multiplicador_saque_automatico: autoCashout,
-        }),
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        currentGameState.saldo = data.saldo;
-        currentGameState.perdeu_ultima_martingale = data.ganho_rodada < 0; // Atualiza estado da Martingale
-        currentGameState.ultima_aposta_martingale =
-          data.current_aposta_martingale; // Atualiza última aposta Martingale
-        currentGameState.aposta_base_martingale =
-          data.aposta_base_martingale ||
-          currentGameState.aposta_base_martingale; // Atualiza base se necessário
-
-        displayRoundResult(data);
-        updateGameUI(currentGameState); // Atualiza saldo e estratégia Martingale no UI
-      } else {
-        displayMessage("Erro na rodada: " + data.message, true);
-        if (data.message.includes("Game Over")) {
-          playRoundBtn.disabled = true; // Desabilita o botão se o jogo acabar
-          alert(
-            "Seu saldo acabou ou não é suficiente para a estratégia. Fim de jogo!"
-          );
-          resetGameBtn.click(); // Reinicia o jogo
-        }
-      }
-    } catch (error) {
-      displayMessage("Erro de conexão ao jogar rodada.", true);
-      console.error("Erro ao jogar rodada:", error);
-    } finally {
-      playRoundBtn.disabled = false; // Habilita o botão novamente
-    }
-  }
-
-  async function fetchHistory() {
-    try {
-      const response = await fetch("/api/get_history");
-      const data = await response.json();
-      if (data.success) {
-        historyListDiv.innerHTML = ""; // Limpa o histórico anterior
-        if (data.historico.length === 0) {
-          historyListDiv.innerHTML = "<p>Nenhuma rodada jogada ainda.</p>";
-        } else {
-          data.historico.forEach((round, index) => {
-            const p = document.createElement("p");
-            const multiplierSacado =
-              round.multiplicador_sacado !== null
-                ? `x${round.multiplicador_sacado.toFixed(2)}`
-                : "N/A";
-            const outcomeClass = round.ganho < 0 ? "lose" : "win";
-            p.innerHTML = `Rodada ${
-              index + 1
-            }: Aposta: R$${round.aposta.toFixed(
-              2
-            )} | Sacado: ${multiplierSacado} | Final: x${round.multiplicador_final.toFixed(
-              2
-            )} | <span class="${outcomeClass}">${
-              round.ganho > 0 ? "Ganho" : "Perda"
-            } (R$${round.ganho.toFixed(2)})</span>`;
-            historyListDiv.appendChild(p);
-          });
-        }
-        showSection("history-section");
-      } else {
-        displayMessage("Erro ao carregar histórico: " + data.message, true);
-      }
-    } catch (error) {
-      displayMessage("Erro de conexão ao carregar histórico.", true);
-      console.error("Erro ao carregar histórico:", error);
-    }
-  }
-
-  async function setStrategy(strategyCode) {
-    try {
-      const response = await fetch("/api/set_strategy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estrategia: strategyCode }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        currentGameState.estrategia_ativa = data.estrategia_ativa;
-        // Ao mudar a estratégia, o backend reseta o estado de Martingale.
-        // O frontend também deve refletir isso.
-        currentGameState.aposta_base_martingale = 0.0;
-        currentGameState.ultima_aposta_martingale = 0.0;
-        currentGameState.perdeu_ultima_martingale = false;
-
-        updateGameUI(currentGameState);
-        showSection("game-section");
-        displayMessage(
-          "Estratégia atualizada para " + getStrategyName(strategyCode)
-        );
-      } else {
-        displayMessage("Erro ao definir estratégia: " + data.message, true);
-      }
-    } catch (error) {
-      displayMessage("Erro de conexão ao definir estratégia.", true);
-      console.error("Erro ao definir estratégia:", error);
-    }
-  }
-
-  // --- Event Listeners ---
+document.addEventListener("DOMContentLoaded", () => {
+  // Inicializa o estado do jogo ao carregar a página
+  fetchGameState();
 
   configGameBtn.addEventListener("click", initGame);
-  playRoundBtn.addEventListener("click", playRound);
-  showHistoryBtn.addEventListener("click", fetchHistory);
-  closeHistoryBtn.addEventListener("click", () => showSection("game-section"));
-  changeStrategyBtn.addEventListener("click", () =>
-    showSection("strategy-section")
-  );
-  cancelStrategyBtn.addEventListener("click", () =>
-    showSection("game-section")
-  );
+  playRoundBtn.addEventListener("click", startGameRound);
+  showHistoryBtn.addEventListener("click", getHistory);
+  changeStrategyBtn.addEventListener("click", () => {
+    gameSection.style.display = "none";
+    strategySection.style.display = "block";
+  });
   resetGameBtn.addEventListener("click", () => {
     // Redireciona a página para reiniciar o estado do backend
-    location.reload();
+    window.location.reload();
+  });
+  closeHistoryBtn.addEventListener("click", () => {
+    historySection.style.display = "none";
+    gameSection.style.display = "block";
+  });
+  cancelStrategyBtn.addEventListener("click", () => {
+    strategySection.style.display = "none";
+    gameSection.style.display = "block";
   });
 
-  strategyBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const strategy = btn.dataset.strategy;
+  document.querySelectorAll(".strategy-btn").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const strategy = event.target.dataset.strategy;
       setStrategy(strategy);
     });
   });
-
-  // Inicializa o estado do jogo ao carregar a página
-  fetchGameState();
 });
