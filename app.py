@@ -6,7 +6,6 @@ import os
 app = Flask(__name__)
 
 # --- Variáveis de Estado do Jogo (Simulando uma sessão de usuário para um único jogador) ---
-# Em uma aplicação multiusuário real, isso seria gerenciado por sessões ou banco de dados.
 game_state = {
     'saldo': 0.0,
     'saldo_inicial_configurado': False,

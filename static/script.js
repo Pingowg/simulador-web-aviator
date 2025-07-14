@@ -40,14 +40,29 @@ function displayMessage(message, isError = false) {
 function updateGameUI(data) {
   currentBalanceSpan.textContent = formatCurrency(data.saldo);
   currentStrategySpan.textContent = getStrategyName(data.estrategia_ativa);
-  betAmountInput.value =
-    data.perdeu_ultima_martingale && data.ultima_aposta_martingale > 0
-      ? (data.ultima_aposta_martingale * 2).toFixed(2)
-      : data.aposta_base_martingale > 0
-      ? data.aposta_base_martingale.toFixed(2)
-      : data.aposta_minima.toFixed(2);
-  betAmountInput.max = Math.min(data.saldo, data.aposta_maxima);
-  betAmountInput.min = data.aposta_minima;
+
+  // Lógica para definir o valor da aposta com base na estratégia
+  let nextBetAmount = data.aposta_minima; // Default
+  if (data.estrategia_ativa === "2") {
+    // Martingale
+    if (data.perdeu_ultima_martingale && data.ultima_aposta_martingale > 0) {
+      nextBetAmount = data.ultima_aposta_martingale * 2;
+    } else if (data.aposta_base_martingale > 0) {
+      nextBetAmount = data.aposta_base_martingale;
+    }
+  } else if (data.estrategia_ativa === "1" && data.aposta_base_martingale > 0) {
+    // Manual, se houver base definida
+    nextBetAmount = data.aposta_base_martingale;
+  }
+
+  // Limita a aposta ao saldo e à aposta máxima
+  nextBetAmount = Math.max(nextBetAmount, data.aposta_minima);
+  nextBetAmount = Math.min(nextBetAmount, data.saldo);
+  nextBetAmount = Math.min(nextBetAmount, data.aposta_maxima);
+
+  betAmountInput.value = nextBetAmount.toFixed(2);
+  betAmountInput.max = Math.min(data.saldo, data.aposta_maxima); // Atualiza o atributo max do input
+  betAmountInput.min = data.aposta_minima; // Atualiza o atributo min do input
 
   if (data.saldo <= 0 || data.saldo < data.aposta_minima) {
     playRoundBtn.disabled = true;
