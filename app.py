@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import random
-import time # Ainda usado para simular "processamento" no backend
-import os # Não mais usado para clear_screen, mas mantido se houver outras utilidades
+import time
+import os
 
 app = Flask(__name__)
 
@@ -19,7 +19,7 @@ game_state = {
     'perdeu_ultima_martingale': False
 }
 
-# --- Funções de Lógica do Jogo (Adaptadas do seu simulador CLI) ---
+# --- Funções de Lógica do Jogo ---
 def gerar_multiplicador_final():
     rand_val = random.random()
     if rand_val < 0.7:
@@ -88,7 +88,18 @@ def init_game():
         game_state['ultima_aposta_martingale'] = 0.0
         game_state['perdeu_ultima_martingale'] = False
 
-        return jsonify({'success': True, 'saldo': game_state['saldo']}), 200
+        # RETORNA TODOS OS DADOS NECESSÁRIOS PARA O FRONTEND
+        return jsonify({
+            'success': True,
+            'saldo': game_state['saldo'],
+            'estrategia_ativa': game_state['estrategia_ativa'],
+            'aposta_minima': game_state['aposta_minima'],
+            'aposta_maxima': game_state['aposta_maxima'],
+            'saldo_inicial_configurado': game_state['saldo_inicial_configurado'],
+            'perdeu_ultima_martingale': game_state['perdeu_ultima_martingale'],
+            'aposta_base_martingale': game_state['aposta_base_martingale'],
+            'ultima_aposta_martingale': game_state['ultima_aposta_martingale']
+        }), 200
     except (ValueError, TypeError):
         return jsonify({'success': False, 'message': 'Entrada inválida. Digite números.'}), 400
 
@@ -154,8 +165,8 @@ def start_round():
         game_state['ultima_aposta_martingale'] = aposta
     else:
         game_state['ultima_aposta_martingale'] = 0 # Reseta se ganhou
-        if game_state['aposta_base_martingale'] != 0: # Se houver uma base, zera se ganhou.
-            game_state['aposta_base_martingale'] = aposta_solicitada if game_state['estrategia_ativa'] == '2' and aposta_solicitada > 0 else game_state['aposta_base_martingale'] # Mantém a base ou atualiza se for a primeira vez Martingale
+        if game_state['aposta_base_martingale'] != 0:
+            game_state['aposta_base_martingale'] = aposta_solicitada if game_state['estrategia_ativa'] == '2' and aposta_solicitada > 0 else game_state['aposta_base_martingale']
 
     game_state['historico_rodadas'].append({
         'aposta': aposta,
@@ -171,7 +182,13 @@ def start_round():
         'multiplicador_sacado': resultado['multiplicador_sacado'],
         'mensagem': resultado['mensagem'],
         'ganho_rodada': resultado['ganho_rodada'],
-        'current_aposta_martingale': aposta # Para o frontend saber a aposta usada
+        'estrategia_ativa': game_state['estrategia_ativa'],
+        'aposta_minima': game_state['aposta_minima'],
+        'aposta_maxima': game_state['aposta_maxima'],
+        'saldo_inicial_configurado': game_state['saldo_inicial_configurado'],
+        'perdeu_ultima_martingale': game_state['perdeu_ultima_martingale'],
+        'aposta_base_martingale': game_state['aposta_base_martingale'],
+        'ultima_aposta_martingale': game_state['ultima_aposta_martingale']
     }
 
     return jsonify(response_data)
@@ -182,7 +199,6 @@ def get_history():
 
 @app.route('/api/get_game_state', methods=['GET'])
 def get_game_state():
-    # Retorna o estado atual do jogo para o frontend se ele precisar se sincronizar
     return jsonify({
         'success': True,
         'saldo': game_state['saldo'],
@@ -211,6 +227,4 @@ def set_strategy():
         return jsonify({'success': False, 'message': 'Estratégia inválida'}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True) # debug=True permite recarregar automaticamente e ver erros
-    # No final do seu app.py, depois de if __name__ == '__main__':
-from app import app
+    app.run(debug=True)

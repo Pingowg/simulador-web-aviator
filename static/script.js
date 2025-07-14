@@ -7,7 +7,7 @@ const strategySection = document.getElementById("strategy-section");
 const saldoInicialInput = document.getElementById("saldoInicial");
 const apostaMinimaInput = document.getElementById("apostaMinima");
 const apostaMaximaInput = document.getElementById("apostaMaxima");
-const configGameBtn = document.getElementById("configGameBtn"); // Botão "Iniciar Jogo"
+const configGameBtn = document.getElementById("configGameBtn");
 
 const currentBalanceSpan = document.getElementById("currentBalance");
 const currentStrategySpan = document.getElementById("currentStrategy");
@@ -23,37 +23,32 @@ const changeStrategyBtn = document.getElementById("changeStrategyBtn");
 const resetGameBtn = document.getElementById("resetGameBtn");
 const closeHistoryBtn = document.getElementById("closeHistoryBtn");
 
-const historyListDiv = document.getElementById("historyList"); // Novo elemento para a lista de histórico
-const cancelStrategyBtn = document.getElementById("cancelStrategyBtn"); // Botão de cancelar estratégia
+const historyListDiv = document.getElementById("historyList");
+const cancelStrategyBtn = document.getElementById("cancelStrategyBtn");
 
 // --- Funções Auxiliares ---
 
-// Função para formatar valores monetários
 function formatCurrency(value) {
   return `R$ ${value.toFixed(2).replace(".", ",")}`;
 }
 
-// Função para exibir mensagens na UI
 function displayMessage(message, isError = false) {
   gameMessagePara.textContent = message;
   gameMessagePara.style.color = isError ? "red" : "inherit";
 }
 
-// Função para atualizar o estado do jogo na UI
 function updateGameUI(data) {
   currentBalanceSpan.textContent = formatCurrency(data.saldo);
   currentStrategySpan.textContent = getStrategyName(data.estrategia_ativa);
   betAmountInput.value =
     data.perdeu_ultima_martingale && data.ultima_aposta_martingale > 0
-      ? (data.ultima_aposta_martingale * 2).toFixed(2) // Sugere dobrar a aposta se perdeu na martingale
+      ? (data.ultima_aposta_martingale * 2).toFixed(2)
       : data.aposta_base_martingale > 0
       ? data.aposta_base_martingale.toFixed(2)
-      : data.aposta_minima.toFixed(2); // Ou base, ou mínima
-  // Garante que o input de aposta não exceda o saldo ou o máximo
+      : data.aposta_minima.toFixed(2);
   betAmountInput.max = Math.min(data.saldo, data.aposta_maxima);
   betAmountInput.min = data.aposta_minima;
 
-  // Se o saldo for 0 ou menor que a aposta mínima, desativa o botão de jogar
   if (data.saldo <= 0 || data.saldo < data.aposta_minima) {
     playRoundBtn.disabled = true;
     displayMessage("Saldo insuficiente para continuar. Reinicie o jogo.", true);
@@ -62,7 +57,6 @@ function updateGameUI(data) {
   }
 }
 
-// Mapeia o ID da estratégia para um nome legível
 function getStrategyName(id) {
   switch (id) {
     case "1":
@@ -115,7 +109,7 @@ async function initGame() {
 
     if (data.success) {
       displayMessage("Jogo inicializado com sucesso!");
-      updateGameUI(data);
+      updateGameUI(data); // Agora 'data' contém todas as propriedades necessárias do backend
       configSection.style.display = "none";
       gameSection.style.display = "block";
     } else {
@@ -148,7 +142,6 @@ async function startGameRound() {
     return;
   }
   if (saqueAutomatico > 0 && saqueAutomatico <= 1 && saqueAutomatico !== 0) {
-    // 0 é para desativar
     displayMessage(
       "Multiplicador de saque automático deve ser maior que 1.0 (ou 0 para desativar).",
       true
@@ -156,10 +149,9 @@ async function startGameRound() {
     return;
   }
 
-  // Desativa o botão para evitar cliques múltiplos
   playRoundBtn.disabled = true;
   displayMessage("Avião voando...", false);
-  roundResultPara.textContent = ""; // Limpa resultado anterior
+  roundResultPara.textContent = "";
 
   try {
     const response = await fetch("/api/start_round", {
@@ -176,7 +168,7 @@ async function startGameRound() {
     const data = await response.json();
 
     if (data.success) {
-      updateGameUI(data); // Atualiza saldo e estratégia
+      updateGameUI(data);
       let resultMessage = data.mensagem;
 
       if (data.multiplicador_sacado) {
@@ -192,11 +184,6 @@ async function startGameRound() {
       roundResultPara.textContent = `Ganho/Perda na rodada: ${formatCurrency(
         data.ganho_rodada
       )}`;
-
-      // Se a estratégia for Martingale e perdeu, atualiza a aposta sugerida
-      if (data.estrategia_ativa === "2" && data.ganho_rodada < 0) {
-        // A lógica de `updateGameUI` já deve sugerir a próxima aposta Martingale
-      }
     } else {
       displayMessage(`Erro na rodada: ${data.message}`, true);
     }
@@ -207,7 +194,7 @@ async function startGameRound() {
       true
     );
   } finally {
-    playRoundBtn.disabled = false; // Reativa o botão
+    playRoundBtn.disabled = false;
   }
 }
 
@@ -217,7 +204,7 @@ async function getHistory() {
     const data = await response.json();
 
     if (data.success) {
-      historyListDiv.innerHTML = ""; // Limpa o histórico anterior
+      historyListDiv.innerHTML = "";
       if (data.historico.length === 0) {
         historyListDiv.innerHTML = "<p>Nenhuma rodada jogada ainda.</p>";
       } else {
@@ -266,8 +253,7 @@ async function setStrategy(strategyId) {
       );
       currentStrategySpan.textContent = getStrategyName(data.estrategia_ativa);
       strategySection.style.display = "none";
-      gameSection.style.display = "block"; // Volta para a tela do jogo
-      // Força a atualização do UI para refletir a nova estratégia (ex: aposta base martingale)
+      gameSection.style.display = "block";
       fetchGameState();
     } else {
       displayMessage(`Erro ao mudar estratégia: ${data.message}`, true);
@@ -286,27 +272,23 @@ async function fetchGameState() {
     const response = await fetch("/api/get_game_state");
     const data = await response.json();
     if (data.success) {
-      // Se o saldo inicial ainda não foi configurado, mostre a seção de configuração
       if (!data.saldo_inicial_configurado) {
         configSection.style.display = "block";
         gameSection.style.display = "none";
         historySection.style.display = "none";
         strategySection.style.display = "none";
       } else {
-        // Se já foi configurado, atualize a UI e mostre a seção do jogo
         updateGameUI(data);
         configSection.style.display = "none";
         gameSection.style.display = "block";
       }
     } else {
       console.error("Erro ao buscar estado do jogo:", data.message);
-      // Se houver erro ao buscar estado, assume que não está configurado
       configSection.style.display = "block";
       gameSection.style.display = "none";
     }
   } catch (error) {
     console.error("Erro na requisição para get_game_state:", error);
-    // Em caso de erro de rede, assume que não está configurado
     configSection.style.display = "block";
     gameSection.style.display = "none";
   }
@@ -315,7 +297,6 @@ async function fetchGameState() {
 // --- Listeners de Eventos ---
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Inicializa o estado do jogo ao carregar a página
   fetchGameState();
 
   configGameBtn.addEventListener("click", initGame);
@@ -326,7 +307,6 @@ document.addEventListener("DOMContentLoaded", () => {
     strategySection.style.display = "block";
   });
   resetGameBtn.addEventListener("click", () => {
-    // Redireciona a página para reiniciar o estado do backend
     window.location.reload();
   });
   closeHistoryBtn.addEventListener("click", () => {
